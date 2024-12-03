@@ -33,8 +33,11 @@ const Pagos = () => {
   );
 
   return (
-    <div className="mt-6">
-         <div className="flex space-x-4">
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-semibold text-gray-800">Pagos</h1>
+          <div className="flex space-x-4">
             <button
               onClick={() => navigate("/home")}
               className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
@@ -60,44 +63,49 @@ const Pagos = () => {
               Pagos
             </button>
           </div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Pagos</h2>
-      <table className="min-w-full border border-gray-200">
-        <thead>
-          <tr>
-            <th className="border px-4 py-2">Alumno</th>
-            <th className="border px-4 py-2">Monto</th>
-            <th className="border px-4 py-2">Fecha</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentPagos.map((pago) => (
-            <tr key={pago._id}>
-              <td className="border px-4 py-2">{pago.alumno}</td>
-              <td className="border px-4 py-2">{pago.monto}</td>
-              <td className="border px-4 py-2">{new Date(pago.fecha).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        </div>
+        {pagos.length === 0 ? (
+          <p className="text-gray-600">No hay pagos registrados.</p>
+        ) : (
+          <table className="min-w-full border border-gray-200">
+            <thead>
+              <tr>
+                <th className="border px-4 py-2">Alumno</th>
+                <th className="border px-4 py-2">Monto</th>
+                <th className="border px-4 py-2">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentPagos.map((pago) => (
+                <tr key={pago._id}>
+                  <td className="border px-4 py-2">{pago.alumno || "No especificado"}</td>
+                  <td className="border px-4 py-2">{pago.monto || "0"}</td>
+                  <td className="border px-4 py-2">{new Date(pago.fecha).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-      <div className="flex justify-center mt-6">
-        <button
-          onClick={() => changePage(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-l-lg disabled:opacity-50"
-        >
-          Anterior
-        </button>
-        <span className="px-4 py-2 text-gray-700">
-          Página {currentPage} de {totalPages}
-        </span>
-        <button
-          onClick={() => changePage(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-r-lg disabled:opacity-50"
-        >
-          Siguiente
-        </button>
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={() => changePage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-l-lg disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <span className="px-4 py-2 text-gray-700">
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            onClick={() => changePage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-r-lg disabled:opacity-50"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
     </div>
   );

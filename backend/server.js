@@ -71,7 +71,7 @@ app.post("/login", async (req, res) => {
       message: "Login exitoso",
       user: {
         user: foundUser.user,
-        role: userRole, // Incluye el campo 'role' en la respuesta
+        // role: userRole, 
       },
     });
   } catch (error) {
@@ -206,24 +206,34 @@ app.put("/api/users/:id", async (req, res) => {
 // Obtener todos los alumnos
 // Cambios en el backend (server.js)
 
+// app.get('/api/alumnos', async (req, res) => {
+//   try {
+//     const docenteId = req.user.id; // Asumo que el ID del docente se obtiene con alguna forma de autenticación, por ejemplo, JWT
+//     const docente = await Docente.findById(docenteId); // Encuentra el docente por ID
+//     if (!docente) {
+//       return res.status(404).send('Docente no encontrado');
+//     }
+
+//     const gradoDocente = docente.grado; // Suponiendo que el docente tiene un campo 'grado'
+
+//     // Filtra los alumnos por el grado del docente
+//     const alumnos = await Alumnos.find({ Grado: gradoDocente });
+//     res.json(alumnos); // Responde con los alumnos filtrados por grado
+//   } catch (error) {
+//     console.error("Error al obtener los alumnos:", error);
+//     res.status(500).send("Error al obtener los alumnos");
+//   }
+// });
 app.get('/api/alumnos', async (req, res) => {
   try {
-    const docenteId = req.user.id; // Asumo que el ID del docente se obtiene con alguna forma de autenticación, por ejemplo, JWT
-    const docente = await Docente.findById(docenteId); // Encuentra el docente por ID
-    if (!docente) {
-      return res.status(404).send('Docente no encontrado');
-    }
-
-    const gradoDocente = docente.grado; // Suponiendo que el docente tiene un campo 'grado'
-
-    // Filtra los alumnos por el grado del docente
-    const alumnos = await Alumnos.find({ Grado: gradoDocente });
-    res.json(alumnos); // Responde con los alumnos filtrados por grado
+    const alumnos = await Alumnos.find(); // Obtiene todos los alumnos sin filtrar
+    res.json(alumnos);
   } catch (error) {
     console.error("Error al obtener los alumnos:", error);
     res.status(500).send("Error al obtener los alumnos");
   }
 });
+
 
 
 
@@ -269,23 +279,39 @@ app.put("/api/alumnos/:id", async (req, res) => {
 
 
 
-app.post('/pago', async (req, res) => {
-  const { token, amount } = req.body;
+// app.post('/pago', async (req, res) => {
 
+
+//   const { token, amount } = req.body;
+
+//   try {
+//     const charge = await stripe.charges.create({
+//       amount: amount * 100, // Convertir el monto a centavos
+//       currency: 'mxn', // Cambia la moneda si es necesario
+//       description: 'Pago de colegiatura',
+//       source: token, // Token obtenido desde el front-end
+//     });
+
+//     res.json({ success: true, charge });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// });
+
+// Obtener todos los pagos desde la colección 'pagos' directamente
+router.get("/pagos", async (req, res) => {
   try {
-    const charge = await stripe.charges.create({
-      amount: amount * 100, // Convertir el monto a centavos
-      currency: 'mxn', // Cambia la moneda si es necesario
-      description: 'Pago de colegiatura',
-      source: token, // Token obtenido desde el front-end
-    });
-
-    res.json({ success: true, charge });
+    const pagos = await mongoose.connection.db.collection("pagos").find().toArray(); // Acceso directo a la colección
+    res.json(pagos); // Enviar los datos como respuesta
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Error al obtener los pagos:", error);
+    res.status(500).send("Error al obtener los pagos");
   }
 });
+
+app.use("/api", router);
+
 app.use('/api', router);  
 
 

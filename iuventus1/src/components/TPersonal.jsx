@@ -1,5 +1,3 @@
-// Cambios en el frontend (TPersonal.js)
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -9,7 +7,6 @@ const TPersonal = () => {
   const [alumnos, setAlumnos] = useState([]);
   const [comentarios, setComentarios] = useState({});
   const [searchTerm, setSearchTerm] = useState(""); // Término de búsqueda
-  const [gradoDocente, setGradoDocente] = useState(""); // Grado del docente
   const [currentPage, setCurrentPage] = useState(1); // Página actual
   const [totalPages, setTotalPages] = useState(1); // Total de páginas
   const pageSize = 10; // Número de alumnos por página
@@ -33,28 +30,13 @@ const TPersonal = () => {
     setCurrentPage(pageNumber);
   };
 
-  // Obtiene el grado del docente (esto puede ser almacenado en el contexto de autenticación o desde una API)
-  const fetchGradoDocente = async () => {
-    try {
-      const response = await axios.get("http://localhost:5000/api/docente/grado");
-      setGradoDocente(response.data.grado); // Aquí asumimos que el backend devuelve el grado del docente
-    } catch (error) {
-      console.error("Error al obtener el grado del docente:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchGradoDocente();
-  }, []);
-
-  // Función para obtener los alumnos de la página actual, solo del grado del docente
+  // Función para obtener los alumnos de la página actual
   const currentAlumnos = alumnos
     .filter(
       (alumno) =>
         alumno.Estudiante.toLowerCase().includes(searchTerm.toLowerCase()) ||
         alumno.id.toString().includes(searchTerm)
     )
-    .filter((alumno) => alumno.Grado === gradoDocente) // Filtro por el grado del docente
     .slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleComentarioChange = (id, value) => {
@@ -86,12 +68,14 @@ const TPersonal = () => {
 
   const exportarAExcel = () => {
     const datos = alumnos.map((alumno) => ({
-      ID: alumno.id,
-      Estudiante: alumno.Estudiante,
-      Grado: alumno.Grado,
-      Comentarios: alumno["Comentario TPersonal"]
-        ?.map((c) => `${c.texto} (${new Date(c.fecha).toLocaleString()})`)
-        .join("; ") || "Sin comentarios",
+      ID: alumno.id || "Sin ID",
+      Estudiante: alumno.Estudiante || "Sin nombre",
+      Grado: alumno.Grado || "Sin grado",
+      Comentarios: Array.isArray(alumno["Comentario TPersonal"])
+        ? alumno["Comentario TPersonal"]
+            .map((c) => `${c.texto} (${new Date(c.fecha).toLocaleString()})`)
+            .join("; ")
+        : "Sin comentarios", // Manejar el caso donde no sea un array
     }));
 
     const hoja = XLSX.utils.json_to_sheet(datos);
@@ -101,36 +85,52 @@ const TPersonal = () => {
     XLSX.writeFile(libro, "alumnos.xlsx");
   };
 
+  // Función para cerrar sesión
+  const cerrarSesion = () => {
+    // Aquí puedes eliminar el token o cualquier dato relacionado con la sesión
+    localStorage.removeItem("usuario"); // O el nombre que hayas usado para almacenar el usuario en localStorage
+    navigate("/login"); // Redirige al inicio de sesión
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
         <h1 className="text-3xl font-semibold text-gray-800 mb-6">Trabajo Personal</h1>
         <div className="flex space-x-4">
-            <button
-              onClick={() => navigate("/home")}
-              className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
-            >
-              Inicio
-            </button>
-            <button
-              onClick={() => navigate("/tpersonal")}
-              className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
-            >
-              Trabajo Personal
-            </button>
-            <button
-              onClick={() => navigate("/subir")}
-              className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
-            >
-              Subir Calificaciones
-            </button>
-            <button
-              onClick={() => navigate("/pagos")}
-              className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
-            >
-              Pagos
-            </button>
-          </div>
+          <button
+            onClick={() => navigate("/home")}
+            className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
+          >
+            Inicio
+          </button>
+          <button
+            onClick={() => navigate("/tpersonal")}
+            className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
+          >
+            Trabajo Personal
+          </button>
+          <button
+            onClick={() => navigate("/subir")}
+            className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
+          >
+            Subir Calificaciones
+          </button>
+          <button
+            onClick={() => navigate("/pagos")}
+            className="text-gray-600 hover:text-blue-600 transition-colors py-2 px-4"
+          >
+            Pagos
+          </button>
+        </div>
+
+        {/* Botón de cerrar sesión */}
+        <button
+          onClick={cerrarSesion}
+          className="bg-red-500 text-white px-4 py-2 rounded mt-6 hover:bg-red-600"
+        >
+          Cerrar Sesión
+        </button>
+
         <button
           onClick={exportarAExcel}
           className="bg-green-500 text-white px-4 py-2 rounded mb-6 hover:bg-green-600"

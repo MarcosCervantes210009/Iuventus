@@ -1,24 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
-  const [role, setRole] = useState(null); // Estado para almacenar el rol del usuario
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Obtener el rol desde localStorage al cargar el componente
-    const storedRole = localStorage.getItem("userRole");
-    if (storedRole) {
-      setRole(parseInt(storedRole)); // Convierte el rol a número
-    } else {
-      navigate("/login"); // Si no hay rol, redirige al login
+    // Verifica si el usuario está autenticado al cargar el componente
+    const isAuthenticated = localStorage.getItem("authToken");
+    if (!isAuthenticated) {
+      navigate("/login"); // Redirige al login si no está autenticado
     }
   }, [navigate]);
 
   const handleLogout = () => {
-    // Elimina los datos de sesión (por ejemplo, token y rol)
+    // Elimina los datos de sesión
     localStorage.removeItem("authToken");
-    localStorage.removeItem("userRole");
+    // localStorage.removeItem("userRole"); // Comentado porque ya no se usa
     navigate("/login"); // Redirige al login después de cerrar sesión
   };
 
@@ -35,35 +32,20 @@ const Home = () => {
       </div>
 
       <div className="flex flex-col space-y-4">
-        {/* Botón Administrar Usuarios: Solo Admin (1) y Director (2) */}
-        {(role === 1 || role === 2) && (
-          <button
-            onClick={() => navigate("/edit")}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-          >
-            Administrar Usuarios
-          </button>
-        )}
+        {/* Botones de navegación generales */}
+        <button
+          onClick={() => navigate("/TPersonal")}
+          className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+        >
+          Revisar Alumnos
+        </button>
 
-        {/* Botón Otras Funcionalidades: Solo Admin (1) y Director (2) */}
-        {(role === 1 || role === 2) && (
-          <button
-            onClick={() => navigate("/TPersonal")}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-          >
-            Otras Funcionalidades
-          </button>
-        )}
-
-        {/* Botón Otras Funcionalidades: Solo Docente (3) */}
-        {role === 3 && (
-          <button
-            onClick={() => navigate("/TPersonal")}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-          >
-            Revisar Alumnos
-          </button>
-        )}
+        <button
+          onClick={() => navigate("/edit")}
+          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+        >
+          Administrar Usuarios
+        </button>
       </div>
     </div>
   );

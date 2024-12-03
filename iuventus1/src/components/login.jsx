@@ -5,10 +5,10 @@ import { useAuth } from "../AuthContext"; // Importa el contexto de autenticaci�
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // Estado para mostrar/ocultar contraseña
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login } = useAuth(); // Usar la función `login` desde el contexto
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,15 +24,14 @@ const Login = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // Llama a la función login del contexto para autenticar
-        login();
+        login(); // Marca como autenticado en el contexto
 
-        // Guarda información del usuario si es necesario
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("token", data.token);
+        localStorage.setItem("authToken", data.token); // Guarda el token
+        localStorage.setItem("user", JSON.stringify(data.user)); // Guarda los datos del usuario
 
-        // Navega al home
-        navigate("/home");
+        console.log("Inicio de sesión exitoso:", data);
+
+        navigate("/home"); // Redirige al home
       } else {
         const data = await response.json();
         setError(data.message || "Credenciales incorrectas");
@@ -44,17 +43,10 @@ const Login = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
-      {/* Logo */}
       <div className="mb-6">
-        <img 
-          src="/assets/logo.jpg" 
-          alt="Logo" 
-          className="w-32 h-32 object-contain" 
-        />
+        <img src="/assets/logo.jpg" alt="Logo" className="w-32 h-32 object-contain" />
       </div>
-      {/* Título */}
       <h1 className="text-2xl font-bold mb-6 text-center">Iniciar sesión</h1>
-      {/* Formulario */}
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md w-80">
         <div className="mb-4">
           <label className="block text-gray-700 font-medium">Usuario</label>
@@ -70,7 +62,7 @@ const Login = () => {
           <label className="block text-gray-700 font-medium">Contraseña</label>
           <div className="relative">
             <input
-              type={showPassword ? "text" : "password"} // Mostrar texto o asteriscos
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -81,7 +73,7 @@ const Login = () => {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-2 top-2 text-gray-500 hover:text-gray-700"
             >
-              {showPassword ? "🙈" : "👁"} {/* Cambia el icono */}
+              {showPassword ? "🙈" : "👁"}
             </button>
           </div>
         </div>
@@ -90,7 +82,6 @@ const Login = () => {
           Iniciar sesión
         </button>
       </form>
-      {/* Registro */}
       <p className="mt-4 text-sm text-gray-600">
         ¿No tienes una cuenta?{" "}
         <button
