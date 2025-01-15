@@ -224,41 +224,41 @@ app.put("/api/users/:id", async (req, res) => {
 //     res.status(500).send("Error al obtener los alumnos");
 //   }
 // });
-app.get('/api/alumnos', async (req, res) => {
+
+// Obtener todos los alumnos
+app.get("/api/alumnos", async (req, res) => {
   try {
-    const alumnos = await Alumnos.find(); // Obtiene todos los alumnos sin filtrar
-    res.json(alumnos);
+    const alumnos = await Alumnos.find(); // Obtiene todos los alumnos
+    res.status(200).json(alumnos);
   } catch (error) {
     console.error("Error al obtener los alumnos:", error);
-    res.status(500).send("Error al obtener los alumnos");
+    res.status(500).json({ message: "Error al obtener los alumnos" });
   }
 });
 
-
-
-
-
-// Actualizar comentarios de un alumno
-app.put("/api/alumnos/:id", async (req, res) => {
-  const { id } = req.params; // ID del alumno recibido en la URL (como número)
+// Agregar un comentario a un alumno
+app.put("/api/alumnos/:id/comentarios", async (req, res) => {
+  const { id } = req.params; // ID del alumno recibido en la URL
   const { comentario } = req.body; // Comentario recibido en el cuerpo de la solicitud
 
   try {
-    // Asegúrate de que el ID recibido es un número entero
+    // Asegúrate de que el ID sea un número
     const idNumerico = parseInt(id);
     if (isNaN(idNumerico)) {
       return res.status(400).json({ message: "ID no válido, debe ser un número" });
     }
 
-    // Busca al alumno por su 'id' numérico en lugar de por _id
+    // Busca al alumno por su 'id' (numérico)
     const alumno = await Alumnos.findOne({ id: idNumerico });
 
     if (!alumno) {
       return res.status(404).json({ message: "Alumno no encontrado" });
     }
 
-    // Asegura que el campo de comentarios esté presente
-    alumno["Comentario TPersonal"] = alumno["Comentario TPersonal"] || [];  // Si no existe, inicialízalo como un array vacío
+    // Asegúrate de que el campo de comentarios esté inicializado
+    alumno["Comentario TPersonal"] = alumno["Comentario TPersonal"] || []; 
+
+    // Agrega el nuevo comentario con fecha
     alumno["Comentario TPersonal"].push({
       texto: comentario,
       fecha: new Date(),
@@ -277,7 +277,34 @@ app.put("/api/alumnos/:id", async (req, res) => {
   }
 });
 
+// Consultar comentarios de un alumno
+app.get("/api/alumnos/:id/comentarios", async (req, res) => {
+  const { id } = req.params;
 
+  try {
+    // Asegúrate de que el ID sea un número
+    const idNumerico = parseInt(id);
+    if (isNaN(idNumerico)) {
+      return res.status(400).json({ message: "ID no válido, debe ser un número" });
+    }
+
+    // Busca al alumno por su 'id' (numérico)
+    const alumno = await Alumnos.findOne({ id: idNumerico });
+
+    if (!alumno) {
+      return res.status(404).json({ message: "Alumno no encontrado" });
+    }
+
+    // Retorna solo los comentarios
+    res.status(200).json({
+      message: "Comentarios encontrados",
+      comentarios: alumno["Comentario TPersonal"] || [],
+    });
+  } catch (error) {
+    console.error("Error al obtener los comentarios:", error);
+    res.status(500).json({ message: "Error al obtener los comentarios" });
+  }
+});
 
 // app.post('/pago', async (req, res) => {
 

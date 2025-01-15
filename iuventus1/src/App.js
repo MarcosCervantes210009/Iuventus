@@ -1,5 +1,6 @@
 import './App.css';
 import Login from "./components/login";
+import Pagina from "./components/pagina";
 import Home from "./components/home";
 import Register from "./components/register";
 import TPersonal from "./components/TPersonal";
@@ -20,6 +21,7 @@ const App = () => {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/pagina" element={<Pagina />} />
           <Route path="/register" element={<Register />} />
           <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/tpersonal" element={<ProtectedRoute><TPersonal /></ProtectedRoute>} />
