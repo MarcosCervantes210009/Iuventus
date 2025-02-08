@@ -177,10 +177,48 @@ app.post("/login", async (req, res) => {
     sql.close(); // Cierra la conexión después de la consulta
   }
 });
-app.post("/register", async (req, res) => {
+// app.post("/register", async (req, res) => {
+//   const { user, password, termsAccepted, role, subjects } = req.body;
+
+//   console.log("Datos recibidos en el backend:", req.body);  // Verifica que los datos están llegando correctamente
+
+//   if (password.length < 8) {
+//     return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
+//   }
+
+//   if (!termsAccepted) {
+//     return res.status(400).json({ message: "Debes aceptar los términos y condiciones." });
+//   }
+
+//   // Validar si el docente ha seleccionado materias
+//   if (role === "3" && (!subjects || subjects.length === 0)) {
+//     return res.status(400).json({ message: "El docente debe seleccionar al menos una materia." });
+//   }
+
+//   // Convertir materias seleccionadas a números
+//   const subjectNumbers = subjects.map(subject => parseInt(subject, 10));
+
+//   try {
+//     const existingUser = await User.findOne({ user });
+//     if (existingUser) {
+//       return res.status(400).json({ message: "El usuario ya existe." });
+//     }
+
+//     // Crear nuevo usuario con las materias seleccionadas si es un docente
+//     const newUser = new User({ user, password, role, subjects: role === "3" ? subjectNumbers : [] });
+//     await newUser.save();
+
+//     res.status(201).json({ message: "Usuario creado exitosamente." });
+//   } catch (error) {
+//     console.error("Error al registrar el usuario:", error);
+//     res.status(500).json({ message: "Error interno del servidor" });
+//   }
+// });
+
+router.post("/register", async (req, res) => {
   const { user, password, termsAccepted, role, subjects } = req.body;
 
-  console.log("Datos recibidos en el backend:", req.body);  // Verifica que los datos están llegando correctamente
+  console.log("Datos recibidos en el backend:", req.body);
 
   if (password.length < 8) {
     return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
@@ -190,23 +228,41 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({ message: "Debes aceptar los términos y condiciones." });
   }
 
-  // Validar si el docente ha seleccionado materias
   if (role === "3" && (!subjects || subjects.length === 0)) {
     return res.status(400).json({ message: "El docente debe seleccionar al menos una materia." });
   }
 
-  // Convertir materias seleccionadas a números
-  const subjectNumbers = subjects.map(subject => parseInt(subject, 10));
-
   try {
-    const existingUser = await User.findOne({ user });
-    if (existingUser) {
+    const pool = await getConnection();
+
+    // Verificar si el usuario ya existe
+    const userCheck = await pool
+      .request()
+      .input("user", sql.VarChar, user)
+      .query("SELECT * FROM Usuarios WHERE user = @user");
+
+    if (userCheck.recordset.length > 0) {
       return res.status(400).json({ message: "El usuario ya existe." });
     }
 
-    // Crear nuevo usuario con las materias seleccionadas si es un docente
-    const newUser = new User({ user, password, role, subjects: role === "3" ? subjectNumbers : [] });
-    await newUser.save();
+    // Insertar nuevo usuario
+    await pool
+      .request()
+      .input("user", sql.VarChar, user)
+      .input("password", sql.VarChar, password) // Hashea la contraseña en producción
+      .input("role", sql.Int, role)
+      .query("INSERT INTO Usuarios (user, password, role) VALUES (@user, @password, @role)");
+
+    // Si el usuario es un docente, registrar sus materias
+    if (role === "3") {
+      for (let subject of subjects) {
+        await pool
+          .request()
+          .input("user", sql.VarChar, user)
+          .input("subject", sql.Int, subject)
+          .query("INSERT INTO DocenteMaterias (user, subject) VALUES (@user, @subject)");
+      }
+    }
 
     res.status(201).json({ message: "Usuario creado exitosamente." });
   } catch (error) {
@@ -214,8 +270,7 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
-
-
+module.exports = router;
 
 
 
