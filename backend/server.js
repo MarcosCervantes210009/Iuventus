@@ -11,6 +11,7 @@
 const express = require("express");
 const cors = require("cors");
 const sql = require("mssql");
+const router = express.Router();
 const stripe = require("stripe")("sk_test_51QOxDnAgPTFOWwmwj35wW58PRRPyRM2ncI561aaTIa9gsnvaRPdIaRnTE5ZrxcuQp9vrRd939U3aimXsd5ZEtn0n00FgSUh2XA");
 
 const app = express();
@@ -274,23 +275,29 @@ module.exports = router;
 
 
 
-app.get("/api/users", async (req, res) => {
-    try {
-      const users = await User.find();  // Obtener todos los usuarios de la base de datos
-      res.status(200).json(users);  // Enviar los usuarios como respuesta
-    } catch (error) {
-      console.error("Error al obtener los usuarios:", error);
-      res.status(500).json({ message: "Error al obtener los usuarios" });
-    }
-  });
+router.get("/api/users", async (req, res) => {
+  try {
+    const pool = await getConnection();
+    const result = await pool.request().query("SELECT * FROM Usuarios");
+
+    res.status(200).json(result.recordset); // Enviar los usuarios como respuesta
+  } catch (error) {
+    console.error("Error al obtener los usuarios:", error);
+    res.status(500).json({ message: "Error al obtener los usuarios" });
+  }
+});
   // Ruta para eliminar usuario
-app.delete("/api/users/:id", async (req, res) => {
-    const { id } = req.params;  // Obtener el id desde los parámetros de la URL
+  router.delete("/api/users/:id", async (req, res) => {
+    const { id } = req.params; // Obtener el ID del usuario
   
     try {
-      const deletedUser = await User.findByIdAndDelete(id);  // Buscar y eliminar al usuario
+      const pool = await getConnection();
+      const result = await pool
+        .request()
+        .input("id", sql.Int, id)
+        .query("DELETE FROM Usuarios WHERE id = @id");
   
-      if (!deletedUser) {
+      if (result.rowsAffected[0] === 0) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
   
@@ -300,30 +307,34 @@ app.delete("/api/users/:id", async (req, res) => {
       res.status(500).json({ message: "Error al eliminar el usuario" });
     }
   });
+  
+  module.exports = router;
 
   // Ruta para actualizar la contraseña del usuario
-app.put("/api/users/:id", async (req, res) => {
+  router.put("/api/users/:id", async (req, res) => {
     const { id } = req.params;
-    const { password } = req.body;  // Obtener la nueva contraseña desde el cuerpo de la solicitud
+    const { password } = req.body; // Obtener la nueva contraseña
   
     try {
-      // Buscar al usuario por su ID y actualizar la contraseña
-      const updatedUser = await User.findByIdAndUpdate(
-        id,
-        { password },  // Actualizar la contraseña
-        { new: true }   // Devuelve el usuario actualizado
-      );
+      const pool = await getConnection();
+      const result = await pool
+        .request()
+        .input("id", sql.Int, id)
+        .input("password", sql.VarChar(255), password)
+        .query("UPDATE Usuarios SET password = @password WHERE id = @id");
   
-      if (!updatedUser) {
+      if (result.rowsAffected[0] === 0) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
   
-      res.status(200).json({ message: "Contraseña actualizada exitosamente", user: updatedUser });
+      res.status(200).json({ message: "Contraseña actualizada exitosamente" });
     } catch (error) {
       console.error("Error al actualizar la contraseña:", error);
       res.status(500).json({ message: "Error al actualizar la contraseña" });
     }
   });
+  
+  module.exports = router;
   
  
 
@@ -350,85 +361,80 @@ app.put("/api/users/:id", async (req, res) => {
 // });
 
 // Obtener todos los alumnos
-app.get("/api/alumnos", async (req, res) => {
+router.get("/api/alumnos", async (req, res) => {
   try {
-    const alumnos = await Alumnos.find(); // Obtiene todos los alumnos
-    res.status(200).json(alumnos);
+    const pool = await getConnection();
+    const result = await pool.request().query("SELECT * FROM Alumnos");
+
+    res.status(200).json(result.recordset);
   } catch (error) {
     console.error("Error al obtener los alumnos:", error);
     res.status(500).json({ message: "Error al obtener los alumnos" });
   }
 });
 
+module.exports = router;
+
 // Agregar un comentario a un alumno
-app.put("/api/alumnos/:id/comentarios", async (req, res) => {
-  const { id } = req.params; // ID del alumno recibido en la URL
-  const { comentario } = req.body; // Comentario recibido en el cuerpo de la solicitud
+router.put("/api/alumnos/:id/comentarios", async (req, res) => {
+  const { id } = req.params;
+  const { comentario } = req.body;
 
   try {
-    // Asegúrate de que el ID sea un número
-    const idNumerico = parseInt(id);
-    if (isNaN(idNumerico)) {
-      return res.status(400).json({ message: "ID no válido, debe ser un número" });
-    }
+    const pool = await getConnection();
+    
+    // Verificar si el alumno existe
+    const alumno = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT * FROM Alumnos WHERE id = @id");
 
-    // Busca al alumno por su 'id' (numérico)
-    const alumno = await Alumnos.findOne({ id: idNumerico });
-
-    if (!alumno) {
+    if (alumno.recordset.length === 0) {
       return res.status(404).json({ message: "Alumno no encontrado" });
     }
 
-    // Asegúrate de que el campo de comentarios esté inicializado
-    alumno["Comentario TPersonal"] = alumno["Comentario TPersonal"] || []; 
+    // Insertar el comentario en la tabla de comentarios
+    await pool
+      .request()
+      .input("id_alumno", sql.Int, id)
+      .input("comentario", sql.Text, comentario)
+      .input("fecha", sql.DateTime, new Date())
+      .query("INSERT INTO Comentarios (id_alumno, comentario, fecha) VALUES (@id_alumno, @comentario, @fecha)");
 
-    // Agrega el nuevo comentario con fecha
-    alumno["Comentario TPersonal"].push({
-      texto: comentario,
-      fecha: new Date(),
-    });
-
-    // Guarda los cambios en la base de datos
-    await alumno.save();
-
-    res.status(200).json({
-      message: "Comentario agregado exitosamente",
-      alumno,
-    });
+    res.status(200).json({ message: "Comentario agregado exitosamente" });
   } catch (error) {
     console.error("Error al actualizar el comentario:", error);
     res.status(500).json({ message: "Error al actualizar el comentario" });
   }
 });
 
+
 // Consultar comentarios de un alumno
-app.get("/api/alumnos/:id/comentarios", async (req, res) => {
+router.get("/api/alumnos/:id/comentarios", async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Asegúrate de que el ID sea un número
-    const idNumerico = parseInt(id);
-    if (isNaN(idNumerico)) {
-      return res.status(400).json({ message: "ID no válido, debe ser un número" });
+    const pool = await getConnection();
+    
+    const result = await pool
+      .request()
+      .input("id_alumno", sql.Int, id)
+      .query("SELECT comentario, fecha FROM Comentarios WHERE id_alumno = @id_alumno ORDER BY fecha DESC");
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: "No se encontraron comentarios" });
     }
 
-    // Busca al alumno por su 'id' (numérico)
-    const alumno = await Alumnos.findOne({ id: idNumerico });
-
-    if (!alumno) {
-      return res.status(404).json({ message: "Alumno no encontrado" });
-    }
-
-    // Retorna solo los comentarios
     res.status(200).json({
       message: "Comentarios encontrados",
-      comentarios: alumno["Comentario TPersonal"] || [],
+      comentarios: result.recordset,
     });
   } catch (error) {
     console.error("Error al obtener los comentarios:", error);
     res.status(500).json({ message: "Error al obtener los comentarios" });
   }
 });
+
 
 // app.post('/pago', async (req, res) => {
 
@@ -472,28 +478,35 @@ app.get("/api/alumnos/:id/comentarios", async (req, res) => {
 // const Calificacion = mongoose.model("Calificacion", calificacionSchema);
 
 // Ruta para recibir las calificaciones
-app.post("/calificaciones", async (req, res) => {
+router.post("/calificaciones", async (req, res) => {
   const { nombreEstudiante, grado, grupo, guia, examen, EAT, AF, calificacionFinal } = req.body;
 
   try {
-    const nuevaCalificacion = new Calificacion({
-      nombreEstudiante,
-      grado,
-      grupo,
-      guia,
-      examen,
-      EAT,
-      AF,
-      calificacionFinal,
-    });
+    const pool = await getConnection();
 
-    await nuevaCalificacion.save();
+    await pool
+      .request()
+      .input("nombreEstudiante", sql.VarChar(100), nombreEstudiante)
+      .input("grado", sql.VarChar(50), grado)
+      .input("grupo", sql.VarChar(50), grupo)
+      .input("guia", sql.Float, guia)
+      .input("examen", sql.Float, examen)
+      .input("EAT", sql.Float, EAT)
+      .input("AF", sql.Float, AF)
+      .input("calificacionFinal", sql.Float, calificacionFinal)
+      .query(
+        `INSERT INTO Calificaciones (nombreEstudiante, grado, grupo, guia, examen, EAT, AF, calificacionFinal) 
+         VALUES (@nombreEstudiante, @grado, @grupo, @guia, @examen, @EAT, @AF, @calificacionFinal)`
+      );
+
     res.status(201).json({ message: "Calificación guardada exitosamente." });
   } catch (error) {
-    console.error(error);
+    console.error("Error al guardar la calificación:", error);
     res.status(500).json({ message: "Error al guardar la calificación." });
   }
 });
+
+module.exports = router;
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
