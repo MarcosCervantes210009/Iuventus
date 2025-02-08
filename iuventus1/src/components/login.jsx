@@ -21,19 +21,18 @@ const Login = () => {
         body: JSON.stringify({ user: username, password }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
 
+      if (response.ok) {
         login(); // Marca como autenticado en el contexto
 
-        localStorage.setItem("authToken", data.token); // Guarda el token
-        localStorage.setItem("user", JSON.stringify(data.user)); // Guarda los datos del usuario
+        localStorage.setItem("authToken", data.token); // (Si más adelante usas JWT)
+        localStorage.setItem("user", JSON.stringify(data.user)); // Guarda usuario
+        localStorage.setItem("role", data.user.role); // Guarda rol del usuario
 
         console.log("Inicio de sesión exitoso:", data);
-
         navigate("/home"); // Redirige al home
       } else {
-        const data = await response.json();
         setError(data.message || "Credenciales incorrectas");
       }
     } catch (err) {

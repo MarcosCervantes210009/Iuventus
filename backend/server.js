@@ -1,10 +1,17 @@
+// const express = require("express");
+// const mongoose = require("mongoose");
+// const cors = require("cors");
+// const User = require("./models/user");
+// const Alumnos = require('./models/alumnos');
+// const stripe = require("stripe")("sk_test_51QOxDnAgPTFOWwmwj35wW58PRRPyRM2ncI561aaTIa9gsnvaRPdIaRnTE5ZrxcuQp9vrRd939U3aimXsd5ZEtn0n00FgSUh2XA");
+// const router = express.Router();
+
+// const app = express();
+// const PORT = 5000;
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
-const User = require("./models/user");
-const Alumnos = require('./models/alumnos');
+const sql = require("mssql");
 const stripe = require("stripe")("sk_test_51QOxDnAgPTFOWwmwj35wW58PRRPyRM2ncI561aaTIa9gsnvaRPdIaRnTE5ZrxcuQp9vrRd939U3aimXsd5ZEtn0n00FgSUh2XA");
-const router = express.Router();
 
 const app = express();
 const PORT = 5000;
@@ -13,12 +20,13 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+
 // Conexión a MongoDB
-const URI = "mongodb+srv://marcosca36:hNEiYluIxXjaTuHu@cluster0.ugou1.mongodb.net/iuventus";
-mongoose
-  .connect(URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("Conexión a MongoDB exitosa"))
-  .catch((err) => console.error("Error al conectar a MongoDB:", err));
+// const URI = "mongodb+srv://marcosca36:hNEiYluIxXjaTuHu@cluster0.ugou1.mongodb.net/iuventus";
+// mongoose
+//   .connect(URI, { useNewUrlParser: true, useUnifiedTopology: true })
+//   .then(() => console.log("Conexión a MongoDB exitosa"))
+//   .catch((err) => console.error("Error al conectar a MongoDB:", err));
 
 //   app.post("/login", async (req, res) => {
 //     const { user, password } = req.body; // Cambiar de 'username' a 'user'
@@ -46,39 +54,63 @@ mongoose
 //       res.status(500).json({ message: "Error interno del servidor" });
 //     }
 //   });
-  
-app.post("/login", async (req, res) => {
-  const { user, password } = req.body;
+ 
+const config = {
+  server: '192.168.100.137',
+  database: 'SistemaRoles',
+  authentication: {
+    type: 'default',
+    options: {
+      userName: 'sa',
+      password: 'MarcosIuventus',
+    },
+  },
+  options: {
+    encrypt: false, // Ajusta según sea necesario
+    trustServerCertificate: true,
+  },
+};
 
-  try {
-    const foundUser = await User.findOne({ user });
 
-    if (!foundUser) {
-      console.log(`Usuario no encontrado: ${user}`);
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    if (foundUser.password !== password) {
-      console.log(`Contraseña incorrecta para el usuario: ${user}`);
-      return res.status(401).json({ message: "Contraseña incorrecta" });
-    }
-
-    // Verifica si el campo role existe en foundUser
-    const userRole = foundUser.role || null;
-
-    console.log("Inicio de sesión exitoso:", foundUser);
-    return res.status(200).json({
-      message: "Login exitoso",
-      user: {
-        user: foundUser.user,
-        // role: userRole, 
-      },
-    });
-  } catch (error) {
-    console.error("Error interno del servidor:", error);
-    return res.status(500).json({ message: "Error interno del servidor" });
-  }
+sql.connect(config).then(pool => {
+  console.log("Conexión a SQL Server exitosa");
+  app.locals.pool = pool;  // Guarda la conexión para usarla en las rutas
+}).catch(err => {
+  console.error("Error al conectar a SQL Server:", err);
 });
+
+// app.post("/login", async (req, res) => {
+//   const { user, password } = req.body;
+
+//   try {
+//     const foundUser = await User.findOne({ user });
+
+//     if (!foundUser) {
+//       console.log(`Usuario no encontrado: ${user}`);
+//       return res.status(404).json({ message: "Usuario no encontrado" });
+//     }
+
+//     if (foundUser.password !== password) {
+//       console.log(`Contraseña incorrecta para el usuario: ${user}`);
+//       return res.status(401).json({ message: "Contraseña incorrecta" });
+//     }
+
+//     // Verifica si el campo role existe en foundUser
+//     const userRole = foundUser.role || null;
+
+//     console.log("Inicio de sesión exitoso:", foundUser);
+//     return res.status(200).json({
+//       message: "Login exitoso",
+//       user: {
+//         user: foundUser.user,
+//         // role: userRole, 
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error interno del servidor:", error);
+//     return res.status(500).json({ message: "Error interno del servidor" });
+//   }
+// });
 
 
 
@@ -108,6 +140,43 @@ app.post("/login", async (req, res) => {
 //     res.status(500).json({ message: "Error interno del servidor" });
 //   }
 // });
+app.post("/login", async (req, res) => {
+  const { user, password } = req.body;
+
+  try {
+    // Conectar a la base de datos
+    await sql.connect(config);
+
+    // Consulta SQL para buscar el usuario
+    const result = await sql.query`SELECT usuario, contraseña, role FROM Usuarios WHERE usuario = ${user}`;
+
+    if (result.recordset.length === 0) {
+      console.log(`Usuario no encontrado: ${user}`);
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const foundUser = result.recordset[0];
+
+    if (foundUser.password !== password) {
+      console.log(`Contraseña incorrecta para el usuario: ${user}`);
+      return res.status(401).json({ message: "Contraseña incorrecta" });
+    }
+
+    console.log("Inicio de sesión exitoso:", foundUser);
+    return res.status(200).json({
+      message: "Login exitoso",
+      user: {
+        user: foundUser.user,
+        role: foundUser.role || null, // Verifica si el rol existe
+      },
+    });
+  } catch (error) {
+    console.error("Error interno del servidor:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  } finally {
+    sql.close(); // Cierra la conexión después de la consulta
+  }
+});
 app.post("/register", async (req, res) => {
   const { user, password, termsAccepted, role, subjects } = req.body;
 
@@ -327,33 +396,25 @@ app.get("/api/alumnos/:id/comentarios", async (req, res) => {
 // });
 
 // Obtener todos los pagos desde la colección 'pagos' directamente
-router.get("/pagos", async (req, res) => {
-  try {
-    const pagos = await mongoose.connection.db.collection("pagos").find().toArray(); // Acceso directo a la colección
-    res.json(pagos); // Enviar los datos como respuesta
-  } catch (error) {
-    console.error("Error al obtener los pagos:", error);
-    res.status(500).send("Error al obtener los pagos");
-  }
-});
+// router.get("/pagos", async (req, res) => {
+//   try {
+//     const pagos = await mongoose.connection.db.collection("pagos").find().toArray(); // Acceso directo a la colección
+//     res.json(pagos); // Enviar los datos como respuesta
+//   } catch (error) {
+//     console.error("Error al obtener los pagos:", error);
+//     res.status(500).send("Error al obtener los pagos");
+//   }
+// });
 
-app.use("/api", router);
+// app.use("/api", router);
 
-app.use('/api', router);  
+// app.use('/api', router);  
 
 
-const calificacionSchema = new mongoose.Schema({
-  nombreEstudiante: String,
-  grado: String,
-  grupo: String,
-  guia: Number,
-  examen: Number,
-  EAT: Number,
-  AF: Number,
-  calificacionFinal: Number,
-});
+// 
 
-const Calificacion = mongoose.model("Calificacion", calificacionSchema);
+
+// const Calificacion = mongoose.model("Calificacion", calificacionSchema);
 
 // Ruta para recibir las calificaciones
 app.post("/calificaciones", async (req, res) => {
