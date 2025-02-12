@@ -10,6 +10,7 @@
 // const PORT = 5000;
 const express = require("express");
 const cors = require("cors");
+// const bcrypt = require("bcrypt");
 const sql = require("mssql");
 const router = express.Router();
 const stripe = require("stripe")("sk_test_51QOxDnAgPTFOWwmwj35wW58PRRPyRM2ncI561aaTIa9gsnvaRPdIaRnTE5ZrxcuQp9vrRd939U3aimXsd5ZEtn0n00FgSUh2XA");
@@ -141,15 +142,54 @@ sql.connect(config).then(pool => {
 //     res.status(500).json({ message: "Error interno del servidor" });
 //   }
 // });
+// app.post("/login", async (req, res) => {
+//   const { user, password } = req.body;
+
+//   try {
+//     // Conectar a la base de datos
+//     await sql.connect(config);
+
+//     // Consulta SQL para buscar el usuario
+//     const result = await sql.query`SELECT usuario, contraseña, id_rol FROM Usuarios WHERE usuario = ${user}`;
+
+//     if (result.recordset.length === 0) {
+//       console.log(`Usuario no encontrado: ${user}`);
+//       return res.status(404).json({ message: "Usuario no encontrado" });
+//     }
+    
+
+//     const foundUser = result.recordset[0];
+
+//     if (foundUser.password !== password) {
+//       console.log(`Contraseña incorrecta para el usuario: ${user}`);
+//       return res.status(401).json({ message: "Contraseña incorrecta" });
+//     }
+
+//     console.log("Inicio de sesión exitoso:", foundUser);
+//     return res.status(200).json({
+//       message: "Login exitoso",
+//       user: {
+//         user: foundUser.user,
+//         role: foundUser.role || null, // Verifica si el rol existe
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error interno del servidor:", error);
+//     return res.status(500).json({ message: "Error interno del servidor" });
+//   } finally {
+//     sql.close(); // Cierra la conexión después de la consulta
+//   }
+// });
+// Asegúrate de que la configuración está bien definida
+
 app.post("/login", async (req, res) => {
   const { user, password } = req.body;
 
   try {
-    // Conectar a la base de datos
     await sql.connect(config);
 
-    // Consulta SQL para buscar el usuario
-    const result = await sql.query`SELECT usuario, contraseña, role FROM Usuarios WHERE usuario = ${user}`;
+    const result = await sql.query`
+      SELECT usuario, contraseña, id_rol FROM Usuarios WHERE usuario = ${user}`;
 
     if (result.recordset.length === 0) {
       console.log(`Usuario no encontrado: ${user}`);
@@ -158,7 +198,8 @@ app.post("/login", async (req, res) => {
 
     const foundUser = result.recordset[0];
 
-    if (foundUser.password !== password) {
+    // Comparar la contraseña directamente (sin encriptar)
+    if (foundUser.contraseña !== password) {
       console.log(`Contraseña incorrecta para el usuario: ${user}`);
       return res.status(401).json({ message: "Contraseña incorrecta" });
     }
@@ -167,17 +208,20 @@ app.post("/login", async (req, res) => {
     return res.status(200).json({
       message: "Login exitoso",
       user: {
-        user: foundUser.user,
-        role: foundUser.role || null, // Verifica si el rol existe
+        usuario: foundUser.usuario,
+        id_rol: foundUser.id_rol,
       },
     });
+
   } catch (error) {
     console.error("Error interno del servidor:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
   } finally {
-    sql.close(); // Cierra la conexión después de la consulta
+    sql.close();
   }
 });
+
+
 // app.post("/register", async (req, res) => {
 //   const { user, password, termsAccepted, role, subjects } = req.body;
 
@@ -219,7 +263,12 @@ app.post("/login", async (req, res) => {
 router.post("/register", async (req, res) => {
   const { user, password, termsAccepted, role, subjects } = req.body;
 
+  // Depuración: Verificar que los datos están llegando correctamente
   console.log("Datos recibidos en el backend:", req.body);
+
+  if (!user || !password || role === undefined) {
+    return res.status(400).json({ message: "Faltan datos obligatorios." });
+  }
 
   if (password.length < 8) {
     return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
@@ -229,7 +278,7 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ message: "Debes aceptar los términos y condiciones." });
   }
 
-  if (role === "3" && (!subjects || subjects.length === 0)) {
+  if (role === 3 && (!subjects || subjects.length === 0)) {
     return res.status(400).json({ message: "El docente debe seleccionar al menos una materia." });
   }
 
@@ -240,37 +289,44 @@ router.post("/register", async (req, res) => {
     const userCheck = await pool
       .request()
       .input("user", sql.VarChar, user)
-      .query("SELECT * FROM Usuarios WHERE user = @user");
+      .query("SELECT * FROM Usuarios WHERE usuario = @user");
+
+    console.log("Usuarios encontrados con ese nombre:", userCheck.recordset);
 
     if (userCheck.recordset.length > 0) {
       return res.status(400).json({ message: "El usuario ya existe." });
     }
 
     // Insertar nuevo usuario
-    await pool
+    const result = await pool
       .request()
       .input("user", sql.VarChar, user)
-      .input("password", sql.VarChar, password) // Hashea la contraseña en producción
+      .input("password", sql.VarChar, password)
       .input("role", sql.Int, role)
-      .query("INSERT INTO Usuarios (user, password, role) VALUES (@user, @password, @role)");
+      .query("INSERT INTO Usuarios (usuario, contraseña, id_rol) VALUES (@user, @password, @role)");
+
+    console.log("Usuario insertado correctamente:", result);
 
     // Si el usuario es un docente, registrar sus materias
-    if (role === "3") {
+    if (role === 3) {
+      console.log("Registrando materias para el docente:", subjects);
       for (let subject of subjects) {
         await pool
           .request()
           .input("user", sql.VarChar, user)
           .input("subject", sql.Int, subject)
-          .query("INSERT INTO DocenteMaterias (user, subject) VALUES (@user, @subject)");
+          .query("INSERT INTO DocenteMaterias (usuario, materia_id) VALUES (@user, @subject)");
       }
     }
 
     res.status(201).json({ message: "Usuario creado exitosamente." });
+
   } catch (error) {
     console.error("Error al registrar el usuario:", error);
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
+
 module.exports = router;
 
 
