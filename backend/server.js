@@ -261,73 +261,30 @@ app.post("/login", async (req, res) => {
 // });
 
 router.post("/register", async (req, res) => {
-  const { user, name, password, termsAccepted, role, subjects } = req.body;
-
-  console.log("Datos recibidos en el backend:", req.body);
-
-  if (!user || !password || !name || role === undefined) {
-    return res.status(400).json({ message: "Faltan datos obligatorios." });
-  }
-
-  if (password.length < 8) {
-    return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
-  }
-
-  if (!termsAccepted) {
-    return res.status(400).json({ message: "Debes aceptar los términos y condiciones." });
-  }
-
-  if (role === 3 && (!subjects || subjects.length === 0)) {
-    return res.status(400).json({ message: "El docente debe seleccionar al menos una materia." });
-  }
+  const { user, name, password, role } = req.body;
 
   try {
     const pool = await getConnection();
 
-    // Verificar si el usuario ya existe
-    const userCheck = await pool
-      .request()
-      .input("user", sql.VarChar, user)
-      .query("SELECT * FROM Usuarios WHERE usuario = @user");
+    const result = await pool.request()
+      .input("usuario", sql.VarChar(50), user)
+      .input("contraseña", sql.VarChar(255), password)
+      .input("nombre", sql.VarChar(100), name)
+      .input("id_rol", sql.Int, role)
+      .input("status", sql.Int, 1) // Siempre envía status = 1
+      .execute("Register");
 
-    if (userCheck.recordset.length > 0) {
-      return res.status(400).json({ message: "El usuario ya existe." });
-    }
+    const insertedId = result.recordset?.[0]?.NuevoUsuarioID;
 
-    // Insertar nuevo usuario (agregando 'nombre')
-    await pool
-      .request()
-      .input("user", sql.VarChar, user)
-      .input("nombre", sql.VarChar, name)
-      .input("password", sql.VarChar, password)
-      .input("role", sql.Int, role)
-      .query(`
-        INSERT INTO Usuarios (usuario, contraseña, nombre, id_rol, status)
-        VALUES (@user, @password, @nombre, @role, 1)
-      `);
-
-    // Si el usuario es un docente, registrar sus materias
-    // if (role === 3) {
-    //   for (let subject of subjects) {
-    //     await pool
-    //       .request()
-    //       .input("user", sql.VarChar, user)
-    //       .input("subject", sql.Int, subject)
-    //       .query(`
-    //         INSERT INTO DocenteMaterias (usuario, materia_id)
-    //         VALUES (@user, @subject)
-    //       `);
-    //   }
-    // }
-
-    return res.status(201).json({ message: "Usuario creado exitosamente." });
+    return res.status(201).json({ 
+      message: "Usuario creado exitosamente.", 
+      userId: insertedId 
+    });
   } catch (error) {
     console.error("Error al registrar el usuario:", error);
-    return res.status(500).json({ message: "Error interno del servidor" });
+    return res.status(500).json({ message: error.message || "Error interno del servidor" });
   }
 });
-
-
 
 
 router.get("/api/users", async (req, res) => {
