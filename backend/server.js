@@ -261,12 +261,11 @@ app.post("/login", async (req, res) => {
 // });
 
 router.post("/register", async (req, res) => {
-  const { user, password, termsAccepted, role, subjects } = req.body;
+  const { user, name, password, termsAccepted, role, subjects } = req.body;
 
-  // Depuración: Verificar que los datos están llegando correctamente
   console.log("Datos recibidos en el backend:", req.body);
 
-  if (!user || !password || role === undefined) {
+  if (!user || !password || !name || role === undefined) {
     return res.status(400).json({ message: "Faltan datos obligatorios." });
   }
 
@@ -291,43 +290,43 @@ router.post("/register", async (req, res) => {
       .input("user", sql.VarChar, user)
       .query("SELECT * FROM Usuarios WHERE usuario = @user");
 
-    console.log("Usuarios encontrados con ese nombre:", userCheck.recordset);
-
     if (userCheck.recordset.length > 0) {
       return res.status(400).json({ message: "El usuario ya existe." });
     }
 
-    // Insertar nuevo usuario
-    const result = await pool
+    // Insertar nuevo usuario (agregando 'nombre')
+    await pool
       .request()
       .input("user", sql.VarChar, user)
+      .input("nombre", sql.VarChar, name)
       .input("password", sql.VarChar, password)
       .input("role", sql.Int, role)
-      .query("INSERT INTO Usuarios (usuario, contraseña, id_rol) VALUES (@user, @password, @role)");
-
-    console.log("Usuario insertado correctamente:", result);
+      .query(`
+        INSERT INTO Usuarios (usuario, contraseña, nombre, id_rol, status)
+        VALUES (@user, @password, @nombre, @role, 1)
+      `);
 
     // Si el usuario es un docente, registrar sus materias
-    if (role === 3) {
-      console.log("Registrando materias para el docente:", subjects);
-      for (let subject of subjects) {
-        await pool
-          .request()
-          .input("user", sql.VarChar, user)
-          .input("subject", sql.Int, subject)
-          .query("INSERT INTO DocenteMaterias (usuario, materia_id) VALUES (@user, @subject)");
-      }
-    }
+    // if (role === 3) {
+    //   for (let subject of subjects) {
+    //     await pool
+    //       .request()
+    //       .input("user", sql.VarChar, user)
+    //       .input("subject", sql.Int, subject)
+    //       .query(`
+    //         INSERT INTO DocenteMaterias (usuario, materia_id)
+    //         VALUES (@user, @subject)
+    //       `);
+    //   }
+    // }
 
-    res.status(201).json({ message: "Usuario creado exitosamente." });
-
+    return res.status(201).json({ message: "Usuario creado exitosamente." });
   } catch (error) {
     console.error("Error al registrar el usuario:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    return res.status(500).json({ message: "Error interno del servidor" });
   }
 });
 
-module.exports = router;
 
 
 

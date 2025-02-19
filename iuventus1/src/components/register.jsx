@@ -2,50 +2,62 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Register = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("3"); // Valor predeterminado: Docente
-  const [secretKey, setSecretKey] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [formData, setFormData] = useState({
+    username: "",
+    name: "",
+    password: "",
+    role: "3", // Docente por defecto
+    secretKey: "",
+    termsAccepted: false,
+  });
+
   const [error, setError] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [subjects, setSubjects] = useState([]);
   const navigate = useNavigate();
 
+  // Manejo de cambios en inputs
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  // Submit del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!termsAccepted) {
+    // Validaciones básicas
+    if (!formData.termsAccepted) {
       setError("Debes aceptar los términos y condiciones.");
       return;
     }
 
-    if (password.length < 8) {
+    if (formData.password.length < 8) {
       setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
-    if ((role === "1" || role === "2") && secretKey !== "iuventus2024") {
+    if (["1", "2"].includes(formData.role) && formData.secretKey !== "iuventus2024") {
       setError("Clave secreta incorrecta para roles Admin o Director.");
       return;
     }
 
-    const subjectNumbers = subjects.map((subject) => parseInt(subject, 10));
-
     try {
-      setIsSubmitting(true); // Desactiva el botón
+      setIsSubmitting(true);
       const response = await fetch("http://localhost:5000/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user: username,
-          password,
-          termsAccepted,
-          role,
-          subjects: subjectNumbers,
+          user: formData.username,
+          name: formData.name,
+          password: formData.password,
+          termsAccepted: formData.termsAccepted,
+          role: formData.role,
         }),
       });
 
@@ -60,41 +72,51 @@ const Register = () => {
     } catch (err) {
       setError("Error de conexión al servidor");
     } finally {
-      setIsSubmitting(false); // Reactiva el botón
+      setIsSubmitting(false);
     }
-  };
-
-  const handleSubjectChange = (e) => {
-    const value = parseInt(e.target.value, 10);
-    setSubjects((prev) =>
-      e.target.checked
-        ? [...prev, value]
-        : prev.filter((subject) => subject !== value)
-    );
   };
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
       <h1 className="text-2xl font-bold mb-6">Crear cuenta</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow-md w-80">
+        {/* Campo para el usuario */}
         <div className="mb-4">
           <label className="block text-gray-700">Usuario</label>
           <input
             type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
             placeholder="Ingresa tu usuario"
             required
           />
         </div>
+
+        {/* Campo para el nombre */}
+        <div className="mb-4">
+          <label className="block text-gray-700">Nombre completo</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+            placeholder="Ingresa tu nombre completo"
+            required
+          />
+        </div>
+
+        {/* Campo para la contraseña */}
         <div className="mb-4">
           <label className="block text-gray-700">Contraseña</label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
               placeholder="Mínimo 8 caracteres"
               required
@@ -108,11 +130,14 @@ const Register = () => {
             </button>
           </div>
         </div>
+
+        {/* Selección de rol */}
         <div className="mb-4">
           <label className="block text-gray-700">Seleccionar rol</label>
           <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
           >
             <option value="3">Docente</option>
@@ -120,53 +145,30 @@ const Register = () => {
             <option value="1">Admin</option>
           </select>
         </div>
-        {role === "3" && (
-          <div className="mb-4">
-            <label className="block text-gray-700">Selecciona las materias que enseñas</label>
-            <div className="flex flex-wrap gap-4">
-              {[
-                { id: 1, name: "Español" },
-                { id: 2, name: "Matemáticas" },
-                { id: 3, name: "Cívica" },
-                { id: 4, name: "Química" },
-                { id: 5, name: "Biología" },
-                { id: 6, name: "Computación" },
-                { id: 7, name: "Teatro" },
-                { id: 8, name: "Dibujo" },
-                { id: 9, name: "Pintura" },
-                { id: 10, name: "Deportes" },
-              ].map((subject) => (
-                <label key={subject.id} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    value={subject.id}
-                    onChange={handleSubjectChange}
-                    className="mr-2"
-                  />
-                  {subject.name}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-        {role !== "3" && (
+
+        {/* Si el rol no es 3, pide clave secreta */}
+        {formData.role !== "3" && (
           <div className="mb-4">
             <label className="block text-gray-700">Clave secreta</label>
             <input
               type="password"
-              value={secretKey}
-              onChange={(e) => setSecretKey(e.target.value)}
+              name="secretKey"
+              value={formData.secretKey}
+              onChange={handleChange}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
               placeholder="Clave secreta"
             />
           </div>
         )}
+
+        {/* Aceptar términos */}
         <div className="mb-4">
           <label>
             <input
               type="checkbox"
-              checked={termsAccepted}
-              onChange={() => setTermsAccepted(!termsAccepted)}
+              name="termsAccepted"
+              checked={formData.termsAccepted}
+              onChange={handleChange}
               className="mr-2"
             />
             Acepto los{" "}
@@ -179,18 +181,19 @@ const Register = () => {
             </button>
           </label>
         </div>
+
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+
         <button
           type="submit"
           className={`w-full p-2 rounded ${
-            isSubmitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-500 hover:bg-blue-600 text-white"
+            isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"
           }`}
           disabled={isSubmitting}
         >
           {isSubmitting ? "Registrando..." : "Crear cuenta"}
         </button>
+
         {isRegistered && (
           <p className="mt-4 text-green-500">Cuenta creada exitosamente. Serás redirigido al login...</p>
         )}
