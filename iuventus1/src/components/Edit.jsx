@@ -16,10 +16,14 @@ const Edit = () => {
       .catch((error) => setError("Error al cargar los usuarios"));
   }, []);
 
-  // Eliminar usuario
+  // Eliminar usuario (borrado lógico)
   const handleDelete = (id) => {
     fetch(`http://localhost:5000/api/users/${id}`, {
-      method: "DELETE",
+      method: "PUT", // Usamos PUT para borrado lógico (cambiar estado del usuario)
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ estado: 0 }), // Estado 0 significa "eliminado"
     })
       .then((response) => response.json())
       .then(() => {
@@ -35,7 +39,7 @@ const Edit = () => {
       return;
     }
 
-    fetch(`http://localhost:5000/api/users/${id}`, {
+    fetch(`http://localhost:5000/api/users/${id}/password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

@@ -31,7 +31,6 @@ const Register = () => {
     e.preventDefault();
     setError("");
 
-    // Validaciones básicas
     if (!formData.termsAccepted) {
       setError("Debes aceptar los términos y condiciones.");
       return;
@@ -53,11 +52,10 @@ const Register = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user: formData.username,
+          username: formData.username,
           name: formData.name,
           password: formData.password,
-          termsAccepted: formData.termsAccepted,
-          role: formData.role,
+          role: formData.role, // Ahora el valor de role se envía tal cual
         }),
       });
 

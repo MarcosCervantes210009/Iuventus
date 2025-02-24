@@ -81,106 +81,7 @@ sql.connect(config).then(pool => {
   console.error("Error al conectar a SQL Server:", err);
 });
 
-// app.post("/login", async (req, res) => {
-//   const { user, password } = req.body;
 
-//   try {
-//     const foundUser = await User.findOne({ user });
-
-//     if (!foundUser) {
-//       console.log(`Usuario no encontrado: ${user}`);
-//       return res.status(404).json({ message: "Usuario no encontrado" });
-//     }
-
-//     if (foundUser.password !== password) {
-//       console.log(`Contraseña incorrecta para el usuario: ${user}`);
-//       return res.status(401).json({ message: "Contraseña incorrecta" });
-//     }
-
-//     // Verifica si el campo role existe en foundUser
-//     const userRole = foundUser.role || null;
-
-//     console.log("Inicio de sesión exitoso:", foundUser);
-//     return res.status(200).json({
-//       message: "Login exitoso",
-//       user: {
-//         user: foundUser.user,
-//         // role: userRole, 
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error interno del servidor:", error);
-//     return res.status(500).json({ message: "Error interno del servidor" });
-//   }
-// });
-
-
-
-// app.post("/register", async (req, res) => {
-//   const { user, password, termsAccepted, role } = req.body;
-
-//   if (password.length < 8) {
-//     return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
-//   }
-
-//   if (!termsAccepted) {
-//     return res.status(400).json({ message: "Debes aceptar los términos y condiciones." });
-//   }
-
-//   try {
-//     const existingUser = await User.findOne({ user });
-//     if (existingUser) {
-//       return res.status(400).json({ message: "El usuario ya existe." });
-//     }
-
-//     const newUser = new User({ user, password, role });
-//     await newUser.save();
-
-//     res.status(201).json({ message: "Usuario creado exitosamente." });
-//   } catch (error) {
-//     console.error("Error al registrar el usuario:", error);
-//     res.status(500).json({ message: "Error interno del servidor" });
-//   }
-// });
-// app.post("/login", async (req, res) => {
-//   const { user, password } = req.body;
-
-//   try {
-//     // Conectar a la base de datos
-//     await sql.connect(config);
-
-//     // Consulta SQL para buscar el usuario
-//     const result = await sql.query`SELECT usuario, contraseña, id_rol FROM Usuarios WHERE usuario = ${user}`;
-
-//     if (result.recordset.length === 0) {
-//       console.log(`Usuario no encontrado: ${user}`);
-//       return res.status(404).json({ message: "Usuario no encontrado" });
-//     }
-    
-
-//     const foundUser = result.recordset[0];
-
-//     if (foundUser.password !== password) {
-//       console.log(`Contraseña incorrecta para el usuario: ${user}`);
-//       return res.status(401).json({ message: "Contraseña incorrecta" });
-//     }
-
-//     console.log("Inicio de sesión exitoso:", foundUser);
-//     return res.status(200).json({
-//       message: "Login exitoso",
-//       user: {
-//         user: foundUser.user,
-//         role: foundUser.role || null, // Verifica si el rol existe
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error interno del servidor:", error);
-//     return res.status(500).json({ message: "Error interno del servidor" });
-//   } finally {
-//     sql.close(); // Cierra la conexión después de la consulta
-//   }
-// });
-// Asegúrate de que la configuración está bien definida
 
 app.post("/login", async (req, res) => {
   const { user, password } = req.body;
@@ -260,36 +161,93 @@ app.post("/login", async (req, res) => {
 //   }
 // });
 
-router.post("/register", async (req, res) => {
-  const { user, name, password, role } = req.body;
-
+app.post("/register", async (req, res) => {
   try {
-    const pool = await getConnection();
+    const { username, name, password, role } = req.body;
+    console.log("Datos recibidos en backend:", { username, name, password, role });
+
+    const pool = await req.app.locals.pool;
+    console.log("Conexión al pool:", pool ? "Conectado" : "No conectado");
 
     const result = await pool.request()
-      .input("usuario", sql.VarChar(50), user)
+      .input("usuario", sql.VarChar(50), username)
       .input("contraseña", sql.VarChar(255), password)
       .input("nombre", sql.VarChar(100), name)
       .input("id_rol", sql.Int, role)
-      .input("status", sql.Int, 1) // Siempre envía status = 1
+      .input("status", sql.Int, 1)
       .execute("Register");
 
-    const insertedId = result.recordset?.[0]?.NuevoUsuarioID;
+    console.log("Resultado de la ejecución del SP:", result);
 
-    return res.status(201).json({ 
-      message: "Usuario creado exitosamente.", 
-      userId: insertedId 
-    });
+    if (result.rowsAffected[0] === 0) {
+      return res.status(500).json({ message: "Error al crear el usuario en SQL." });
+    }
+
+    return res.status(201).json({ message: "Usuario registrado con éxito" });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error);
-    return res.status(500).json({ message: error.message || "Error interno del servidor" });
+    console.error("Error en la API:", error);
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
   }
 });
 
 
-router.get("/api/users", async (req, res) => {
+app.post("/edit", async (req, res) => {
   try {
-    const pool = await getConnection();
+    const { username, newPassword } = req.body;
+    console.log("Datos recibidos en backend para editar contraseña:", { username, newPassword });
+
+    const pool = await req.app.locals.pool;
+    console.log("Conexión al pool:", pool ? "Conectado" : "No conectado");
+
+    // Ejecutamos el procedimiento almacenado para editar la contraseña
+    const result = await pool.request()
+      .input("usuario", sql.VarChar(50), username)
+      .input("nuevaContraseña", sql.VarChar(255), newPassword)
+      .execute("EditPassword");
+
+    console.log("Resultado de la ejecución del SP:", result);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(500).json({ message: "Error al editar la contraseña en SQL." });
+    }
+
+    return res.status(200).json({ message: "Contraseña actualizada con éxito" });
+  } catch (error) {
+    console.error("Error en la API:", error);
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+app.post("/delete", async (req, res) => {
+  try {
+    const { username } = req.body;
+    console.log("Datos recibidos en backend para eliminar usuario:", { username });
+
+    const pool = await req.app.locals.pool;
+    console.log("Conexión al pool:", pool ? "Conectado" : "No conectado");
+
+    // Ejecutamos el procedimiento almacenado para eliminar el usuario (borrado lógico)
+    const result = await pool.request()
+      .input("usuario", sql.VarChar(50), username)
+      .execute("DeleteUser");
+
+    console.log("Resultado de la ejecución del SP:", result);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(500).json({ message: "Error al eliminar el usuario en SQL." });
+    }
+
+    return res.status(200).json({ message: "Usuario eliminado correctamente" });
+  } catch (error) {
+    console.error("Error en la API:", error);
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+
+
+app.get("/api/users", async (req, res) => {
+  try {
+    const pool = await req.app.locals.pool;
     const result = await pool.request().query("SELECT * FROM Usuarios");
 
     res.status(200).json(result.recordset); // Enviar los usuarios como respuesta
@@ -298,37 +256,14 @@ router.get("/api/users", async (req, res) => {
     res.status(500).json({ message: "Error al obtener los usuarios" });
   }
 });
-  // Ruta para eliminar usuario
-  router.delete("/api/users/:id", async (req, res) => {
-    const { id } = req.params; // Obtener el ID del usuario
-  
-    try {
-      const pool = await getConnection();
-      const result = await pool
-        .request()
-        .input("id", sql.Int, id)
-        .query("DELETE FROM Usuarios WHERE id = @id");
-  
-      if (result.rowsAffected[0] === 0) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
-      }
-  
-      res.status(200).json({ message: "Usuario eliminado exitosamente" });
-    } catch (error) {
-      console.error("Error al eliminar el usuario:", error);
-      res.status(500).json({ message: "Error al eliminar el usuario" });
-    }
-  });
-  
-  module.exports = router;
 
-  // Ruta para actualizar la contraseña del usuario
+  // Ruta para eliminar usuario
   router.put("/api/users/:id", async (req, res) => {
     const { id } = req.params;
     const { password } = req.body; // Obtener la nueva contraseña
   
     try {
-      const pool = await getConnection();
+      const pool = await req.app.locals.pool;
       const result = await pool
         .request()
         .input("id", sql.Int, id)
@@ -346,7 +281,34 @@ router.get("/api/users", async (req, res) => {
     }
   });
   
+  
   module.exports = router;
+
+  // Ruta para actualizar la contraseña del usuario
+  // router.put("/api/users/:id", async (req, res) => {
+  //   const { id } = req.params;
+  //   const { password } = req.body; // Obtener la nueva contraseña
+  
+  //   try {
+  //     const pool = await getConnection();
+  //     const result = await pool
+  //       .request()
+  //       .input("id", sql.Int, id)
+  //       .input("password", sql.VarChar(255), password)
+  //       .query("UPDATE Usuarios SET password = @password WHERE id = @id");
+  
+  //     if (result.rowsAffected[0] === 0) {
+  //       return res.status(404).json({ message: "Usuario no encontrado" });
+  //     }
+  
+  //     res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+  //   } catch (error) {
+  //     console.error("Error al actualizar la contraseña:", error);
+  //     res.status(500).json({ message: "Error al actualizar la contraseña" });
+  //   }
+  // });
+  
+  // module.exports = router;
   
  
 
@@ -448,46 +410,9 @@ router.get("/api/alumnos/:id/comentarios", async (req, res) => {
 });
 
 
-// app.post('/pago', async (req, res) => {
 
 
-//   const { token, amount } = req.body;
 
-//   try {
-//     const charge = await stripe.charges.create({
-//       amount: amount * 100, // Convertir el monto a centavos
-//       currency: 'mxn', // Cambia la moneda si es necesario
-//       description: 'Pago de colegiatura',
-//       source: token, // Token obtenido desde el front-end
-//     });
-
-//     res.json({ success: true, charge });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ success: false, error: error.message });
-//   }
-// });
-
-// Obtener todos los pagos desde la colección 'pagos' directamente
-// router.get("/pagos", async (req, res) => {
-//   try {
-//     const pagos = await mongoose.connection.db.collection("pagos").find().toArray(); // Acceso directo a la colección
-//     res.json(pagos); // Enviar los datos como respuesta
-//   } catch (error) {
-//     console.error("Error al obtener los pagos:", error);
-//     res.status(500).send("Error al obtener los pagos");
-//   }
-// });
-
-// app.use("/api", router);
-
-// app.use('/api', router);  
-
-
-// 
-
-
-// const Calificacion = mongoose.model("Calificacion", calificacionSchema);
 
 // Ruta para recibir las calificaciones
 router.post("/calificaciones", async (req, res) => {
