@@ -2,64 +2,81 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Edit = () => {
-  const [users, setUsers] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [newPassword, setNewPassword] = useState("");
-  const [editUserId, setEditUserId] = useState(null);
+  const [editUsuario, setEditUsuario] = useState(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   // Cargar usuarios al iniciar
   useEffect(() => {
-    fetch("http://localhost:5000/api/users")
+    fetch("http://localhost:5000/api/usuarios")
       .then((response) => response.json())
-      .then((data) => setUsers(data))
-      .catch((error) => setError("Error al cargar los usuarios"));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setUsuarios(data);
+        } else {
+          setUsuarios([]);
+          setError("Error: datos de usuarios inválidos");
+        }
+      })
+      .catch(() => setError("Error al cargar los usuarios"));
   }, []);
 
   // Eliminar usuario (borrado lógico)
-  const handleDelete = (id) => {
-    fetch(`http://localhost:5000/api/users/${id}`, {
-      method: "PUT", // Usamos PUT para borrado lógico (cambiar estado del usuario)
+  const handleDelete = (usuario) => {
+    if (!window.confirm(`¿Seguro que quieres eliminar a ${usuario}?`)) {
+      return;
+    }
+
+    fetch(`http://localhost:5000/delete`, {
+      method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ estado: 0 }), // Estado 0 significa "eliminado"
+      body: JSON.stringify({ username: usuario }),
     })
       .then((response) => response.json())
       .then(() => {
-        setUsers(users.filter((user) => user._id !== id));
+        setUsuarios((prevUsuarios) =>
+          prevUsuarios.filter((u) => u.usuario !== usuario)
+        );
       })
       .catch(() => setError("Error al eliminar el usuario"));
   };
 
   // Actualizar contraseña
-  const handleUpdatePassword = (id) => {
+  const handleUpdatePassword = (usuario) => {
+    if (!usuario) {
+      setError("Usuario no válido.");
+      return;
+    }
+
     if (!newPassword) {
       setError("Por favor, ingresa una nueva contraseña.");
       return;
     }
 
-    fetch(`http://localhost:5000/api/users/${id}/password`, {
+    fetch(`http://localhost:5000/edit`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ password: newPassword }),
+      body: JSON.stringify({ username: usuario, password: newPassword }),
     })
       .then((response) => response.json())
       .then(() => {
-        setUsers(users.map((user) => (user._id === id ? { ...user, password: newPassword } : user)));
-        setEditUserId(null); // Cierra el formulario de edición
-        setNewPassword(""); // Limpia el campo de la nueva contraseña
+        alert("Contraseña actualizada correctamente");
+        setEditUsuario(null);
+        setNewPassword("");
       })
       .catch(() => setError("Error al actualizar la contraseña"));
   };
 
   // Manejar cierre de sesión
   const handleLogout = () => {
-    // Elimina los datos de sesión (por ejemplo, token de autenticación)
     localStorage.removeItem("authToken");
-    navigate("/login"); // Redirige al login después de cerrar sesión
+    navigate("/login");
   };
 
   // Regresar al inicio
@@ -72,14 +89,12 @@ const Edit = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Administrar Usuarios</h1>
         <div className="space-x-4">
-          {/* Botón de Cerrar sesión */}
           <button
             onClick={handleLogout}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
           >
             Cerrar sesión
           </button>
-          {/* Botón de Regresar al Inicio */}
           <button
             onClick={handleGoHome}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
@@ -94,36 +109,44 @@ const Edit = () => {
       <table className="table-auto w-full border-collapse mb-6">
         <thead>
           <tr>
-            <th className="border p-2">ID</th>
             <th className="border p-2">Usuario</th>
+            <th className="border p-2">Nombre</th>
             <th className="border p-2">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
-            <tr key={user._id}>
-              <td className="border p-2">{user._id}</td>
-              <td className="border p-2">{user.user}</td>
-              <td className="border p-2">
-                <button
-                  onClick={() => handleDelete(user._id)}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-                >
-                  Eliminar
-                </button>
-                <button
-                  onClick={() => setEditUserId(user._id)}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 ml-2"
-                >
-                  Editar Contraseña
-                </button>
+          {Array.isArray(usuarios) && usuarios.length > 0 ? (
+            usuarios.map((usuario) => (
+              <tr key={usuario.usuario}>
+                <td className="border p-2">{usuario.usuario}</td>
+                <td className="border p-2">{usuario.nombre}</td>
+                <td className="border p-2">
+                  <button
+                    onClick={() => handleDelete(usuario.usuario)}
+                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                  >
+                    Eliminar
+                  </button>
+                  <button
+                    onClick={() => setEditUsuario(usuario.usuario)}
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 ml-2"
+                  >
+                    Editar Contraseña
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="3" className="border p-2 text-center">
+                No hay usuarios disponibles
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 
-      {editUserId && (
+      {editUsuario && (
         <div className="bg-white p-6 rounded shadow-md w-80 mx-auto">
           <h2 className="text-lg font-semibold mb-4">Editar Contraseña</h2>
           <input
@@ -134,7 +157,7 @@ const Edit = () => {
             placeholder="Nueva contraseña"
           />
           <button
-            onClick={() => handleUpdatePassword(editUserId)}
+            onClick={() => handleUpdatePassword(editUsuario)}
             className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
           >
             Actualizar Contraseña

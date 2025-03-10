@@ -1,28 +1,46 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState(null);
+  const [username, setUsername] = useState(""); // Para mostrar el usuario
 
-  useEffect(() => {
-    // Verifica si el usuario está autenticado al cargar el componente
-    const isAuthenticated = localStorage.getItem("authToken");
-    if (!isAuthenticated) {
-      navigate("/login"); // Redirige al login si no está autenticado
+ useEffect(() => {
+  const authToken = localStorage.getItem("authToken");
+  const user = localStorage.getItem("user");
+
+  if (!authToken) {
+    navigate("/login");
+  } else {
+    if (user) {
+      try {
+        const parsedUser = JSON.parse(user);
+        setUsername(parsedUser.usuario);
+        setUserRole(parsedUser.id_rol); // Aquí obtenemos el rol correctamente
+        console.log("Parsed User:", parsedUser);
+        console.log("Rol del usuario:", parsedUser.id_rol);
+      } catch (error) {
+        console.error("Error al parsear user:", error);
+      }
     }
-  }, [navigate]);
+  }
+}, [navigate]);
 
+  
   const handleLogout = () => {
-    // Elimina los datos de sesión
     localStorage.removeItem("authToken");
-    // localStorage.removeItem("userRole"); // Comentado porque ya no se usa
-    navigate("/login"); // Redirige al login después de cerrar sesión
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">Bienvenido al Sistema</h1>
+        <h1 className="text-2xl font-semibold">
+          Bienvenido al Sistema: {username}
+        </h1>
         <button
           onClick={handleLogout}
           className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
@@ -32,7 +50,6 @@ const Home = () => {
       </div>
 
       <div className="flex flex-col space-y-4">
-        {/* Botones de navegación generales */}
         <button
           onClick={() => navigate("/TPersonal")}
           className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
@@ -40,12 +57,18 @@ const Home = () => {
           Revisar Alumnos
         </button>
 
-        <button
-          onClick={() => navigate("/edit")}
-          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-        >
-          Administrar Usuarios
-        </button>
+        {/* Debugging: mostrar el rol actual */}
+        <p>Current User Role: {userRole}</p>
+
+        {/* Mostrar el botón solo si el usuario es Admin (1) o Director (2) */}
+        {userRole === 1 || userRole === 2 ? (
+          <button
+            onClick={() => navigate("/edit")}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+          >
+            Administrar Usuarios
+          </button>
+        ) : null}
       </div>
     </div>
   );
