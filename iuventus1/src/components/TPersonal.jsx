@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import { useNavigate } from "react-router-dom";
 
 const TPersonal = () => {
     const [alumnos, setAlumnos] = useState([]);
@@ -8,6 +9,7 @@ const TPersonal = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchAlumnos = async () => {
@@ -15,7 +17,6 @@ const TPersonal = () => {
                 const response = await axios.get("http://localhost:5000/api/alumnos");
                 setAlumnos(response.data);
 
-                // Inicializa selectedUpdates con valores vacíos
                 const initialUpdates = response.data.reduce((acc, alumno) => {
                     acc[alumno.id] = { Trabajo: "", Comentario: "" };
                     return acc;
@@ -31,7 +32,7 @@ const TPersonal = () => {
     const handleInputChange = (id, field, value) => {
         setSelectedUpdates((prev) => ({
             ...prev,
-            [id]: { ...prev[id], [field]: value }, // Solo modifica el campo de un alumno específico
+            [id]: { ...prev[id], [field]: value },
         }));
     };
 
@@ -50,7 +51,6 @@ const TPersonal = () => {
         }
     };
 
-    // Función para exportar los datos a Excel
     const exportToExcel = () => {
         const dataToExport = alumnos.map((alumno) => ({
             ID: alumno.id,
@@ -65,9 +65,12 @@ const TPersonal = () => {
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte Alumnos");
-
-        // Generar el archivo y descargarlo
         XLSX.writeFile(workbook, "Reporte_Alumnos.xlsx");
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("token"); // Elimina el token de sesión
+        navigate("/login"); // Redirige al login
     };
 
     const filteredAlumnos = alumnos.filter(
@@ -85,8 +88,17 @@ const TPersonal = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+            <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg relative">
+                {/* Botón de Cerrar Sesión */}
+                <button
+                    onClick={handleLogout}
+                    className="absolute top-4 right-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                    Cerrar Sesión
+                </button>
+
                 <h1 className="text-3xl font-semibold text-gray-800 mb-6">Trabajo Personal</h1>
+                
                 <div className="mb-6">
                     <input
                         type="text"
@@ -96,6 +108,7 @@ const TPersonal = () => {
                         className="border px-4 py-2 rounded w-full"
                     />
                 </div>
+
                 <table className="min-w-full border border-gray-200 mb-6">
                     <thead>
                         <tr>

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const sql = require("mssql");
 const router = express.Router();
+const nodemailer = require("nodemailer");
 const stripe = require("stripe")("sk_test_51QOxDnAgPTFOWwmwj35wW58PRRPyRM2ncI561aaTIa9gsnvaRPdIaRnTE5ZrxcuQp9vrRd939U3aimXsd5ZEtn0n00FgSUh2XA");
 
 const app = express();
@@ -282,6 +283,16 @@ router.post("/calificaciones", async (req, res) => {
     res.status(500).json({ message: "Error al registrar calificación" });
   }
 });
+
+// Configuración de transporte para enviar correos
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "tuemail@gmail.com", // Cambia esto por tu correo
+    pass: "tucontraseña", // Usa una contraseña de aplicación si usas Gmail
+  },
+});
+
 
 // Configurar Express para usar las rutas definidas
 app.use(router);
