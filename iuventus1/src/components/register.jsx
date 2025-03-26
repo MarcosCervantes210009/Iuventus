@@ -22,7 +22,7 @@ const Register = () => {
     { id: 1, nombre: "Español", valor: 1 },
     { id: 2, nombre: "Matemáticas", valor: 2 },
     { id: 3, nombre: "Educación Artística", valor: 6 },
-    { id: 4, nombre: "F.Cívica y Ética", valor: 7 },
+    { id: 4, nombre: "F.cívica y Ética", valor: 7 },
     { id: 5, nombre: "Inglés", valor: 3 },
     { id: 6, nombre: "Química", valor: 4 },
     { id: 7, nombre: "Historia", valor: 5 },
@@ -38,12 +38,15 @@ const Register = () => {
 
     if (name === "selectedSubjects") {
       // Si el checkbox está marcado, agregar la materia, si no, quitarla
-      setFormData((prev) => ({
-        ...prev,
-        selectedSubjects: checked
-          ? [...prev.selectedSubjects, value]
-          : prev.selectedSubjects.filter((materia) => materia !== value),
-      }));
+      setFormData((prev) => {
+        const updatedSubjects = checked
+          ? [...prev.selectedSubjects, parseInt(value)]
+          : prev.selectedSubjects.filter((materia) => materia !== parseInt(value));
+        return {
+          ...prev,
+          selectedSubjects: updatedSubjects,
+        };
+      });
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -82,12 +85,12 @@ const Register = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          subjects: formData.selectedSubjects, // Enviamos el array de materias
+          subjects: formData.selectedSubjects, // Enviar solo los ids de las materias
         }),
       });
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
         navigate("/login");
       } else {
@@ -170,8 +173,8 @@ const Register = () => {
                       <input
                         type="checkbox"
                         name="selectedSubjects"
-                        value={materia.nombre}
-                        checked={formData.selectedSubjects.includes(materia.nombre)}
+                        value={materia.id} // Enviar el id en lugar del nombre
+                        checked={formData.selectedSubjects.includes(materia.id)} // Comparar con id
                         onChange={handleChange}
                         className="mr-2"
                       />

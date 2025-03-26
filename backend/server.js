@@ -118,6 +118,11 @@ app.post("/register", async (req, res) => {
     const pool = await connectToDB();
     if (!pool) return res.status(500).json({ message: "Error en la conexión a la base de datos" });
 
+    // Función para normalizar los nombres, eliminando puntos y espacios
+    const normalizeInput = (input) => {
+      return input.replace(/[.]/g, '').trim().toLowerCase();
+    };
+
     // Registrar el usuario
     const result = await pool.request()
       .input("usuario", sql.VarChar(50), username)
@@ -144,24 +149,11 @@ app.post("/register", async (req, res) => {
 
     // Insertar las materias en la tabla usuario_materia
     if (subjects && subjects.length > 0) {
-      for (const subjectName of subjects) {
-        const subjectNameSanitized = subjectName.trim().toLowerCase(); // Sanitiza el nombre de la materia
-
-        // Buscar el ID de la materia por nombre
-        const subjectQuery = await pool.request()
-          .input("nombre_materia", sql.VarChar(100), subjectNameSanitized)
-          .query("SELECT id FROM materias WHERE LOWER(nombre) = @nombre_materia"); // Comparación en minúsculas
-
-        if (subjectQuery.recordset.length === 0) {
-          return res.status(400).json({ message: `La materia ${subjectName} no existe` });
-        }
-
-        const subjectId = subjectQuery.recordset[0].id;
-
+      for (const subjectId of subjects) { // Ahora subjects es un array de IDs
         // Insertar el ID de la materia en usuario_materia
         await pool.request()
           .input("usuario_id", sql.Int, userId)
-          .input("materia_id", sql.Int, subjectId)
+          .input("materia_id", sql.Int, subjectId) // Usamos el ID directamente
           .query("INSERT INTO usuario_materia (usuario_id, materia_id) VALUES (@usuario_id, @materia_id)");
       }
     }
@@ -172,6 +164,7 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ message: "Error en el servidor", error: error.message });
   }
 });
+
 
 
 
