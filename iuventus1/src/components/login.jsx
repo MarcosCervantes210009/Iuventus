@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../AuthContext"; // Importa el contexto de autenticación
+import { useAuth } from "../AuthContext";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -26,12 +26,12 @@ const Login = () => {
       if (response.ok) {
         login(); // Marca como autenticado en el contexto
 
-        localStorage.setItem("authToken", data.token); // (Si más adelante usas JWT)
-        localStorage.setItem("user", JSON.stringify(data.user)); // Guarda usuario
-        localStorage.setItem("role", data.user.role); // Guarda rol del usuario
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user)); // Guarda usuario completo
+        localStorage.setItem("role", data.user.id_rol); // Guarda rol del usuario correctamente
 
         console.log("Inicio de sesión exitoso:", data);
-        navigate("/home"); // Redirige al home
+        navigate("/home");
       } else {
         setError(data.message || "Credenciales incorrectas");
       }
